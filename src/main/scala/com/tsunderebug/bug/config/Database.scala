@@ -1,8 +1,9 @@
 package com.tsunderebug.bug.config
 
+import java.lang.reflect.Type
 import java.sql.{Connection, Timestamp}
 
-import com.google.gson.Gson
+import com.google.gson.{Gson, GsonBuilder, InstanceCreator}
 import com.tsunderebug.bug.Main
 import org.postgresql.ds.PGConnectionPoolDataSource
 import org.postgresql.util.PSQLException
@@ -51,9 +52,9 @@ object Database {
       """.stripMargin).execute()
   }
 
-  def guildConfig(g: IGuild): GuildConfig = {
+  def guildConfig(g: Long): GuildConfig = {
     val s = conn.prepareStatement("SELECT configj FROM gconfig WHERE gid = ?;")
-    s.setLong(1, g.getLongID)
+    s.setLong(1, g)
     s.execute()
     val r = s.getResultSet
     r.next()
@@ -63,7 +64,9 @@ object Database {
       case _: PSQLException => null
     }) match {
       case Some(j) =>
-        new Gson().fromJson(j, classOf[GuildConfig])
+        new GsonBuilder().registerTypeAdapter(classOf[Option[_]], new InstanceCreator[Option[_]] {
+          override def createInstance(t: Type): Option[_] = None
+        }).create().fromJson(j, classOf[GuildConfig])
       case None =>
         val c = GuildConfig()
         val s = conn.prepareStatement(
@@ -71,11 +74,22 @@ object Database {
              |INSERT INTO gconfig
              |VALUES (?, ?);
           """.stripMargin)
-        s.setLong(1, g.getLongID)
+        s.setLong(1, g)
         s.setString(2, new Gson().toJson(c))
         s.execute()
         c
     }
+  }
+
+  def setGuildConfig(g: IGuild, c: GuildConfig): Unit = {
+    val s = conn.prepareStatement(
+      """
+        |INSERT INTO gconfig
+        |VALUES (?, ?);
+      """.stripMargin)
+    s.setLong(1, g.getLongID)
+    s.setString(2, new Gson().toJson(c))
+    s.execute()
   }
 
   def tempbans: Array[(Long, Long, Timestamp)] = {

@@ -26,7 +26,14 @@ object ReadyListener extends IListener[ReadyEvent] {
     scheduler.schedule(() => {
       (() => {
         Main.client.getGuildByID(gid).pardonUser(uid)
-
+        val s = Database.conn.prepareStatement(
+          """
+            |DELETE FROM tempbans
+            |WHERE uid = ? AND gid = ?;
+          """.stripMargin)
+        s.setLong(1, uid)
+        s.setLong(2, gid)
+        s.execute()
       }).r
     }, unb.getTime - System.currentTimeMillis(), TimeUnit.MILLISECONDS)
   }

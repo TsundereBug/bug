@@ -1,49 +1,43 @@
 package com.tsunderebug.bug.bot.command
 
-import com.tsunderebug.bug.Main
-import com.tsunderebug.bug.bot.Parsing
-import com.tsunderebug.bug.infraction.Infraction
+import com.tsunderebug.bug.bot.command.moderation.{BanCommand, InfractionCommands, WarnCommand}
+import com.tsunderebug.bug.config.Database
 import sx.blah.discord.handle.obj.Permissions
-
-import scala.collection.JavaConverters._
 
 object Commands {
 
   lazy val list: Seq[Command] = Seq(
+    BanCommand,
+    WarnCommand,
     Command(
-      """!b(?:a?n)?""".r, (m, a) => {
-        val u = Parsing.getUser(a(0))
-        m.author.getPermissionsForGuild(m.guild).contains(Permissions.BAN) && Main.client.getOurUser.getPermissionsForGuild(m.guild).contains(Permissions.BAN) &&
-          (
-            u.isEmpty || !m.guild.getUsers.contains(u.get) ||
-            m.author.getRolesForGuild(m.guild).asScala.map(_.getPosition).max > u.get.getRolesForGuild(m.guild).asScala.map(_.getPosition).max
-          )
-      }, (m, a) => {
-        val u = Parsing.getUser(a(0))
-        val r = a.drop(1).mkString(" ")
-        u match {
-          case Some(uo) =>
-            Infraction.banUser(m.guild, uo, m.author, r)
-            m.message.reply(s"banned ${Infraction.nameFormat(uo.getLongID)} for:```\n$r\n```")
-          case None =>
-            Infraction.banID(m.guild, a(0).toLong, m.author, r)
-            m.message.reply(s"banned ${Infraction.nameFormat(a(0).toLong)} for:```\n$r\n```")
-        }
-      })
+      """c(?:o?n)?(?:fg?)?""".r, (m, _) => m.author.getPermissionsForGuild(m.guild).contains(Permissions.MANAGE_SERVER),
+      (m, a) => Database.guildConfig(m.guild.getLongID).configCommand(m, a)
+    ),
+    Command(
+      """eval""".r, (m, _) => m.author.getLongID == 192322936219238400l, Eval.crystal
+    ),
+    InfractionCommands.Info
   )
 
   def findCommand(m: CommandMessage, afterPref: String): (Option[Command], Array[String]) = {
     val search = afterPref.split("""\s+""")
-    list.map(searchCommand(m, _, search)).filter(_._1.isDefined).head
+    list.map(searchCommand(m, _, search)).find(_._1.isDefined) match {
+      case Some((c, a)) => (c, a)
+      case None => (None, Array())
+    }
   }
 
   def searchCommand(m: CommandMessage, command: Command, toFind: Array[String]): (Option[Command], Array[String]) = {
-    command.subs.find((c) => toFind(0) match {
-      case c.reg() => true
-      case _ if command.valid(m, toFind.drop(1)) => false
+    command.subs.find((c) => toFind(1) match {
+      case c.reg() if c.valid(m, toFind.drop(1)) => true
+      case _ => false
     }) match {
       case None =>
-        (Some(command), toFind.drop(1))
+        toFind(0) match {
+          case command.reg() if command.valid(m, toFind.drop(1)) =>
+            (Some(command), toFind.drop(1))
+          case _ => (None, Array())
+        }
       case Some(c) =>
         searchCommand(m, c, toFind.drop(1))
     }

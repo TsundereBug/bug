@@ -11,10 +11,10 @@ import scala.collection.JavaConverters._
 class CommandActor extends Actor {
 
   override def receive: Receive = {
-    case CommandMessage(author, message, guild, time) if message.getEmbeds.asScala.forall(_.getType != "rich") && !author.isBot =>
+    case CommandMessage(author, message, guild, time) if message.getEmbeds.asScala.forall((e) => !(e.getType == "rich" && e.getFooter.getIconUrl != "https://abs.twimg.com/icons/apple-touch-icon-192x192.png")) && !author.isBot =>
       val mo = CommandMessage(author, message, guild, time)
       val gc = Database.guildConfig(guild.getLongID)
-      val vprefs = gc.prefixes.filter(message.getContent.startsWith).map(_.length)
+      val vprefs = gc.array("prefixes").getOrElse(Array("<@316763443816300545> ", "<@!316763443816300545> ")).filter(message.getContent.startsWith).map(_.length)
       if(!vprefs.isEmpty) {
         val pref = message.getContent.drop(vprefs.max)
         Commands.findCommand(mo, pref) match {

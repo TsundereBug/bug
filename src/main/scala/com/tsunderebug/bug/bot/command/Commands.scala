@@ -29,7 +29,7 @@ object Commands {
 
   def searchCommand(m: CommandMessage, command: Command, toFind: Array[String]): (Option[Command], Array[String]) = {
     command.subs.find((c) => toFind(1) match {
-      case c.reg() if c.valid(m, toFind.drop(1)) => true
+      case c.reg() if c.valid(m, toFind.drop(1)) || (c.subs.isEmpty || c.subs.forall(!_.valid(m, toFind.drop(2)))) => true
       case _ => false
     }) match {
       case None =>

@@ -26,7 +26,7 @@ case class Infraction(uuid: UUID, target: Long, submitter: Long, guild: Long, in
 object Infraction {
 
   def nameFormat(ul: Long): String = {
-    Option(Main.client.getUserByID(ul)) match {
+    Option(Main.client.fetchUser(ul)) match {
       case Some(u) =>
         s"`${u.getName}#${u.getDiscriminator} (${u.getLongID})`"
       case None =>
@@ -93,6 +93,28 @@ object Infraction {
     } else {
       None
     }
+  }
+
+  def apply(u: IUser): Iterator[Infraction] = {
+    val s = Database.conn.prepareCall("SELECT * FROM infractions WHERE targetid = ?;")
+    s.setLong(1, u.getLongID)
+    s.execute()
+    val r = s.getResultSet
+    r.next()
+    Iterator.continually {
+      val t = r.getLong(2)
+      val s = r.getLong(3)
+      val g = r.getLong(4)
+      val i = InfractionType(r.getString(5).charAt(0))
+      val m = r.getString(6)
+      val z = r.getTimestamp(7)
+      Infraction(r.getObject(1, classOf[UUID]), t, s, g, i.getOrElse(Warn), m, z.getTime, i match {
+        case Some(TempBan) | Some(PermBan) => () => {(() => Main.client.getGuildByID(g).pardonUser(t)).r}
+        case Some(TempMute) | Some(PermMute) => () => {} // TODO
+        case Some(Kick) => () => {}
+        case Some(Warn) => () => {}
+      })
+    }.takeWhile((_) => r.next())
   }
 
 }

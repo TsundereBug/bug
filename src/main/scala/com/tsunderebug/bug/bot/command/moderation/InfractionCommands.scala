@@ -17,7 +17,14 @@ object InfractionCommands {
       val u = Parsing.getUser(a(0))
       u match {
         case Some(i) =>
-
+          val eb = new EmbedBuilder
+          eb.withAuthorName(s"${Infraction.nameFormat(i.getLongID)}'s infractions:")
+          eb.withColor(0x30FF8F)
+          eb.withAuthorIcon(s"${i.getAvatarURL}")
+          Infraction(i).toSeq.sortBy(_.submitted).reverse.take(25).foreach((f) => {
+            eb.appendField(s"`${f.infType.name}` on `${Instant.ofEpochMilli(f.submitted)}` by `${Infraction.nameFormat(f.submitter)}", s"`${f.uuid}` ${f.reason}", true)
+          })
+          m.message.getChannel.sendMessage(eb.build())
         case None =>
           try {
             val d = UUID.fromString(a(0))
@@ -51,11 +58,15 @@ object InfractionCommands {
 
   object Clear extends Command(
     """cl(?:(?:ea)?r)?""".r, (m, a) => {
-      val u = UUID.fromString(a(0))
-      val o = Infraction(u)
-      o match {
-        case Some(i) => i.submitter == m.author.getLongID
-        case None => false
+      try {
+        val u = UUID.fromString(a(0))
+        val o = Infraction(u)
+        o match {
+          case Some(i) => i.submitter == m.author.getLongID
+          case None => false
+        }
+      } catch {
+        case _: IllegalArgumentException => false
       }
     }, (m, a) => {
       val u = UUID.fromString(a(0))

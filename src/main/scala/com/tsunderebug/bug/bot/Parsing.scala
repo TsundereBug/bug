@@ -13,9 +13,9 @@ object Parsing {
   def getUser(s: String): Option[IUser] = {
     s match {
       case userIDReg(id) =>
-        Option(Main.client.getUserByID(id.toLong))
+        Option(Main.client.fetchUser(id.toLong))
       case userMentionReg(id) =>
-        Option(Main.client.getUserByID(id.toLong))
+        Option(Main.client.fetchUser(id.toLong))
       case _ =>
         None
     }
